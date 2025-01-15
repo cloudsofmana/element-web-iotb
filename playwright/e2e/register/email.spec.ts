@@ -10,28 +10,29 @@ import { test, expect } from "../../element-web-test";
 import { emailHomeserver } from "../../plugins/homeserver/synapse/emailHomeserver.ts";
 import { isDendrite } from "../../plugins/homeserver/dendrite";
 
+test.use(emailHomeserver);
+test.use({
+    config: ({ config }, use) =>
+        use({
+            ...config,
+            default_server_config: {
+                ...config.default_server_config,
+                "m.identity_server": {
+                    base_url: "https://server.invalid",
+                },
+            },
+        }),
+});
+
 test.describe("Email Registration", async () => {
     test.skip(isDendrite, "not yet wired up");
-    test.use(emailHomeserver);
-    test.use({
-        config: ({ config }, use) =>
-            use({
-                ...config,
-                default_server_config: {
-                    ...config.default_server_config,
-                    "m.identity_server": {
-                        base_url: "https://server.invalid",
-                    },
-                },
-            }),
-    });
 
     test.beforeEach(async ({ homeserver, page }) => {
         await page.goto("/#/register");
     });
 
     test(
-        "registers an account and lands on the use case selection screen",
+        "registers an account and lands on the home page",
         { tag: "@screenshot" },
         async ({ page, mailhogClient, request, checkA11y }) => {
             await expect(page.getByRole("textbox", { name: "Username" })).toBeVisible();
@@ -56,7 +57,7 @@ test.describe("Email Registration", async () => {
             const [emailLink] = messages.items[0].text.match(/http.+/);
             await request.get(emailLink); // "Click" the link in the email
 
-            await expect(page.locator(".mx_UseCaseSelection_skip")).toBeVisible();
+            await expect(page.getByText("Welcome alice")).toBeVisible();
         },
     );
 });
