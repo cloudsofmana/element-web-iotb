@@ -13,6 +13,7 @@ import { test as base, expect } from "../../../element-web-test";
 import { Bot } from "../../../pages/bot";
 import { Client } from "../../../pages/client";
 import { ElementAppPage } from "../../../pages/ElementAppPage";
+import { Credentials } from "../../../plugins/homeserver";
 
 type RoomRef = { name: string; roomId: string };
 
@@ -37,11 +38,13 @@ export const test = base.extend<{
     room1Name: "Room 1",
     room1: async ({ room1Name: name, app, user, bot }, use) => {
         const roomId = await app.client.createRoom({ name, invite: [bot.credentials.userId] });
+        await bot.awaitRoomMembership(roomId);
         await use({ name, roomId });
     },
     room2Name: "Room 2",
     room2: async ({ room2Name: name, app, user, bot }, use) => {
         const roomId = await app.client.createRoom({ name, invite: [bot.credentials.userId] });
+        await bot.awaitRoomMembership(roomId);
         await use({ name, roomId });
     },
     msg: async ({ page, app, util }, use) => {
@@ -336,12 +339,14 @@ export class Helpers {
      * @param room1
      * @param room2
      * @param msg - MessageBuilder
+     * @param user - the user to mention in the first message
      * @param hasMention - whether to include a mention in the first message
      */
     async populateThreads(
         room1: { name: string; roomId: string },
         room2: { name: string; roomId: string },
         msg: MessageBuilder,
+        user: Credentials,
         hasMention = true,
     ) {
         if (hasMention) {
@@ -350,9 +355,9 @@ export class Helpers {
                 msg.threadedOff("Msg1", {
                     "body": "User",
                     "format": "org.matrix.custom.html",
-                    "formatted_body": "<a href='https://matrix.to/#/@user:localhost'>User</a>",
+                    "formatted_body": `<a href="https://matrix.to/#/${user.userId}">User</a>`,
                     "m.mentions": {
-                        user_ids: ["@user:localhost"],
+                        user_ids: [user.userId],
                     },
                 }),
             ]);

@@ -121,7 +121,7 @@ export class Bot extends Client {
                     return logger as unknown as Logger;
                 }
 
-                const logger = getLogger(`cypress bot ${credentials.userId}`);
+                const logger = getLogger(`bot ${credentials.userId}`);
 
                 const keys = {};
 
@@ -171,7 +171,7 @@ export class Bot extends Client {
                 if (opts.autoAcceptInvites) {
                     cli.on(window.matrixcs.RoomMemberEvent.Membership, (event, member) => {
                         if (member.membership === "invite" && member.userId === cli.getUserId()) {
-                            cli.joinRoom(member.roomId);
+                            void cli.joinRoom(member.roomId);
                         }
                     });
                 }
@@ -192,7 +192,6 @@ export class Bot extends Client {
 
         await clientHandle.evaluate(async (cli) => {
             await cli.initRustCrypto({ useIndexedDB: false });
-            cli.setGlobalErrorOnUnknownDevices(false);
             await cli.startClient();
         });
 
