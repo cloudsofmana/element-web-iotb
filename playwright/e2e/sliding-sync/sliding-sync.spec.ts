@@ -6,8 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import { Page, Request } from "@playwright/test";
-import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
+import { type Page, type Request } from "@playwright/test";
+import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 
 import { test as base, expect } from "../../element-web-test";
 import type { ElementAppPage } from "../../pages/ElementAppPage";
@@ -108,7 +108,6 @@ test.describe("Sliding Sync", () => {
         await page.getByRole("menuitemradio", { name: "A-Z" }).dispatchEvent("click");
         await expect(page.locator(".mx_StyledRadioButton_checked").getByText("A-Z")).toBeVisible();
 
-        await page.pause();
         await checkOrder(["Apple", "Orange", "Pineapple", "Test Room"], page);
     });
 
@@ -276,7 +275,7 @@ test.describe("Sliding Sync", () => {
         // now rescind the invite
         await bot.evaluate(
             async (client, { roomRescind, clientUserId }) => {
-                client.kick(roomRescind, clientUserId);
+                await client.kick(roomRescind, clientUserId);
             },
             { roomRescind, clientUserId },
         );
@@ -295,7 +294,7 @@ test.describe("Sliding Sync", () => {
             is_direct: true,
         });
         await app.client.evaluate(async (client, roomId) => {
-            client.setRoomTag(roomId, "m.favourite", { order: 0.5 });
+            await client.setRoomTag(roomId, "m.favourite", { order: 0.5 });
         }, roomId);
         await expect(page.getByRole("group", { name: "Favourites" }).getByText("Favourite DM")).toBeVisible();
         await expect(page.getByRole("group", { name: "People" }).getByText("Favourite DM")).not.toBeAttached();
@@ -371,37 +370,42 @@ test.describe("Sliding Sync", () => {
             roomIds.push(id);
             await expect(page.getByRole("treeitem", { name: fruit })).toBeVisible();
         }
-        const [roomAId, roomPId] = roomIds;
+        const [roomAId, roomPId, roomOId] = roomIds;
 
-        const assertUnsubExists = (request: Request, subRoomId: string, unsubRoomId: string) => {
+        const matchRoomSubRequest = (subRoomId: string) => (request: Request) => {
+            if (!request.url().includes("/sync")) return false;
             const body = request.postDataJSON();
-            // There may be a request without a txn_id, ignore it, as there won't be any subscription changes
-            if (body.txn_id === undefined) {
-                return;
-            }
-            expect(body.unsubscribe_rooms).toEqual([unsubRoomId]);
-            expect(body.room_subscriptions).not.toHaveProperty(unsubRoomId);
-            expect(body.room_subscriptions).toHaveProperty(subRoomId);
+            return body.txn_id && body.room_subscriptions?.[subRoomId];
+        };
+        const matchRoomUnsubRequest = (unsubRoomId: string) => (request: Request) => {
+            if (!request.url().includes("/sync")) return false;
+            const body = request.postDataJSON();
+            return (
+                body.txn_id && body.unsubscribe_rooms?.includes(unsubRoomId) && !body.room_subscriptions?.[unsubRoomId]
+            );
         };
 
-        let promise = page.waitForRequest(/sync/);
-
-        // Select the Test Room
-        await page.getByRole("treeitem", { name: "Apple", exact: true }).click();
-
-        // and wait for playwright to get the request
-        const roomSubscriptions = (await promise).postDataJSON().room_subscriptions;
+        // Select the Test Room and wait for playwright to get the request
+        const [request] = await Promise.all([
+            page.waitForRequest(matchRoomSubRequest(roomAId)),
+            page.getByRole("treeitem", { name: "Apple", exact: true }).click(),
+        ]);
+        const roomSubscriptions = request.postDataJSON().room_subscriptions;
         expect(roomSubscriptions, "room_subscriptions is object").toBeDefined();
 
-        // Switch to another room
-        promise = page.waitForRequest(/sync/);
-        await page.getByRole("treeitem", { name: "Pineapple", exact: true }).click();
-        assertUnsubExists(await promise, roomPId, roomAId);
+        // Switch to another room and wait for playwright to get the request
+        await Promise.all([
+            page.waitForRequest(matchRoomSubRequest(roomPId)),
+            page.waitForRequest(matchRoomUnsubRequest(roomAId)),
+            page.getByRole("treeitem", { name: "Pineapple", exact: true }).click(),
+        ]);
 
-        // And switch to even another room
-        promise = page.waitForRequest(/sync/);
-        await page.getByRole("treeitem", { name: "Apple", exact: true }).click();
-        assertUnsubExists(await promise, roomPId, roomAId);
+        // And switch to even another room and wait for playwright to get the request
+        await Promise.all([
+            page.waitForRequest(matchRoomSubRequest(roomOId)),
+            page.waitForRequest(matchRoomUnsubRequest(roomPId)),
+            page.getByRole("treeitem", { name: "Orange", exact: true }).click(),
+        ]);
 
         // TODO: Add tests for encrypted rooms
     });

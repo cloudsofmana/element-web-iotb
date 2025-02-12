@@ -8,8 +8,8 @@ Please see LICENSE files in the repository root for full details.
 
 import React from "react";
 import { render, screen, waitFor } from "jest-matrix-react";
-import { mocked, MockedObject } from "jest-mock";
-import { MatrixClient } from "matrix-js-sdk/src/matrix";
+import { mocked, type MockedObject } from "jest-mock";
+import { type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import _RightPanel from "../../../../src/components/structures/RightPanel";
 import { MatrixClientPeg } from "../../../../src/MatrixClientPeg";
@@ -124,7 +124,7 @@ describe("RightPanel", () => {
         await waitFor(() => expect(screen.queryByTestId("spinner")).not.toBeInTheDocument());
 
         // room one will be in the MemberList phase - confirm this is rendered
-        expect(container.getElementsByClassName("mx_MemberList")).toHaveLength(1);
+        expect(container.getElementsByClassName("mx_MemberListView")).toHaveLength(1);
 
         // wait for RPS room 2 updates to fire, then rerender
         const _rpsUpdated = waitForRpsUpdate();
@@ -146,7 +146,7 @@ describe("RightPanel", () => {
         // the correct right panel state for whichever room we are showing, so we
         // confirm we do not have the MemberList class on the page and that we have
         // the expected room title
-        expect(container.getElementsByClassName("mx_MemberList")).toHaveLength(0);
+        expect(container.getElementsByClassName("mx_MemberListView")).toHaveLength(0);
         expect(screen.getByRole("heading", { name: "r2" })).toBeInTheDocument();
     });
 });

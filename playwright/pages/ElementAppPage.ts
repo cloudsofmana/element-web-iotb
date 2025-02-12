@@ -158,10 +158,6 @@ export class ElementAppPage {
         return button.click();
     }
 
-    public async getClipboardText(): Promise<string> {
-        return this.page.evaluate("navigator.clipboard.readText()");
-    }
-
     public async openSpotlight(): Promise<Spotlight> {
         const spotlight = new Spotlight(this.page);
         await spotlight.open();
@@ -175,6 +171,18 @@ export class ElementAppPage {
     public async toggleRoomInfoPanel(): Promise<Locator> {
         await this.page.getByRole("button", { name: "Room info" }).first().click();
         return this.page.locator(".mx_RightPanel");
+    }
+
+    /**
+     * Opens/closes the memberlist panel
+     * @returns locator to the memberlist panel
+     */
+    public async toggleMemberlistPanel(): Promise<Locator> {
+        const locator = this.page.locator(".mx_FacePile");
+        await locator.click();
+        const memberlist = this.page.locator(".mx_MemberListView");
+        await memberlist.waitFor();
+        return memberlist;
     }
 
     /**

@@ -6,8 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
+import { type ClientServerApi } from "../utils/api.ts";
+
 export interface HomeserverInstance {
     readonly baseUrl: string;
+    readonly csApi: ClientServerApi;
 
     /**
      * Register a user on the given Homeserver using the shared registration secret.
@@ -41,4 +44,7 @@ export interface Credentials {
     homeServer: string;
     password: string | null; // null for password-less users
     displayName?: string;
+    username: string; // the localpart of the userId
 }
+
+export type HomeserverType = "synapse" | "dendrite" | "pinecone";

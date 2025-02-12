@@ -6,14 +6,14 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { GenericContainer, Wait } from "testcontainers";
-import { APIRequestContext } from "@playwright/test";
 import * as YAML from "yaml";
 import { set } from "lodash";
 
 import { randB64Bytes } from "../plugins/utils/rand.ts";
 import { StartedSynapseContainer } from "./synapse.ts";
 import { deepCopy } from "../plugins/utils/object.ts";
-import { HomeserverContainer } from "./HomeserverContainer.ts";
+import { type HomeserverContainer } from "./HomeserverContainer.ts";
+import { type StartedMatrixAuthenticationServiceContainer } from "./mas.ts";
 
 const DEFAULT_CONFIG = {
     version: 2,
@@ -208,11 +208,7 @@ const DEFAULT_CONFIG = {
 export class DendriteContainer extends GenericContainer implements HomeserverContainer<typeof DEFAULT_CONFIG> {
     private config: typeof DEFAULT_CONFIG;
 
-    constructor(
-        private request: APIRequestContext,
-        image = "matrixdotorg/dendrite-monolith:main",
-        binary = "/usr/bin/dendrite",
-    ) {
+    constructor(image = "matrixdotorg/dendrite-monolith:main", binary = "/usr/bin/dendrite") {
         super(image);
 
         this.config = deepCopy(DEFAULT_CONFIG);
@@ -240,7 +236,12 @@ export class DendriteContainer extends GenericContainer implements HomeserverCon
         return this;
     }
 
-    public override async start(): Promise<StartedSynapseContainer> {
+    // Dendrite does not support MAS at this time
+    public withMatrixAuthenticationService(mas?: StartedMatrixAuthenticationServiceContainer): this {
+        return this;
+    }
+
+    public override async start(): Promise<StartedDendriteContainer> {
         this.withCopyContentToContainer([
             {
                 target: "/etc/dendrite/dendrite.yaml",
@@ -249,18 +250,25 @@ export class DendriteContainer extends GenericContainer implements HomeserverCon
         ]);
 
         const container = await super.start();
-        // Surprisingly, Dendrite implements the same register user Admin API Synapse, so we can just extend it
-        return new StartedSynapseContainer(
+        return new StartedDendriteContainer(
             container,
             `http://${container.getHost()}:${container.getMappedPort(8008)}`,
             this.config.client_api.registration_shared_secret,
-            this.request,
         );
     }
 }
 
 export class PineconeContainer extends DendriteContainer {
-    constructor(request: APIRequestContext) {
-        super(request, "matrixdotorg/dendrite-demo-pinecone:main", "/usr/bin/dendrite-demo-pinecone");
+    constructor() {
+        super("matrixdotorg/dendrite-demo-pinecone:main", "/usr/bin/dendrite-demo-pinecone");
+    }
+}
+
+// Surprisingly, Dendrite implements the same register user Synapse Admin API, so we can just extend it
+export class StartedDendriteContainer extends StartedSynapseContainer {
+    protected async deletePublicRooms(): Promise<void> {
+        // Dendrite does not support admin users managing the room directory
+        // https://github.com/element-hq/dendrite/blob/main/clientapi/routing/directory.go#L365
+        return;
     }
 }

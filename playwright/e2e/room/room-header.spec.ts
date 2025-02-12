@@ -6,10 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import { Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
 import { test, expect } from "../../element-web-test";
-import { ElementAppPage } from "../../pages/ElementAppPage";
+import { type ElementAppPage } from "../../pages/ElementAppPage";
 
 test.describe("Room Header", () => {
     test.use({
@@ -110,6 +110,10 @@ test.describe("Room Header", () => {
                 { tag: "@screenshot" },
                 async ({ page, app, user }) => {
                     await createVideoRoom(page, app);
+
+                    // Dismiss a toast that is otherwise in the way (it's the other
+                    // side but there's no need to have it in the screenshot)
+                    await page.getByRole("button", { name: "Later" }).click();
 
                     const header = page.locator(".mx_RoomHeader");
 
